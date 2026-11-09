@@ -1,0 +1,112 @@
+-- Safe Brainrot GUI (Debug Fix)
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SafeBrainrotGUI"
+screenGui.ResetOnSpawn = false
+
+pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not screenGui.Parent then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -110, 0.3, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(0, 220, 130)
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "🛡️ Safe Snatcher (Fixed)"
+title.TextColor3 = Color3.fromRGB(0, 220, 130)
+title.TextSize = 13
+title.Font = Enum.Font.SourceSansBold
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
+
+local tpBestBtn = Instance.new("TextButton")
+tpBestBtn.Size = UDim2.new(1, -20, 0, 45)
+tpBestBtn.Position = UDim2.new(0, 10, 0, 45)
+tpBestBtn.Text = "Safe TP & Steal"
+tpBestBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBestBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+tpBestBtn.TextSize = 13
+tpBestBtn.Font = Enum.Font.SourceSansBold
+tpBestBtn.Parent = mainFrame
+Instance.new("UICorner", tpBestBtn).CornerRadius = UDim.new(0, 6)
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 100)
+statusLabel.Text = "Status: Ready"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 12
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextWrapped = true
+statusLabel.Parent = mainFrame
+
+local function safeStealRoutine()
+    statusLabel.Text = "Searching for items..."
+    
+    -- Universal search: look for ProximityPrompts or TouchInterests anywhere in workspace maps/plots
+    local targetPrompt = nil
+    local targetPart = nil
+    
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            -- Make sure it's not our own or part of shop UI
+            targetPrompt = obj
+            targetPart = obj.Parent
+            break
+        end
+    end
+    
+    if targetPrompt and targetPart then
+        statusLabel.Text = "Target found! Moving..."
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            local destCF = targetPart:IsA("BasePart") and targetPart.CFrame or hrp.CFrame
+            
+            -- Fast safety tween with a strict timeout so it never freezes
+            local tween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {CFrame = destCF + Vector3.new(0, 3, 0)})
+            tween:Play()
+            
+            -- Wait for tween with timeout safety
+            local finished = false
+            task.delay(0.5, function() finished = true end)
+            repeat task.wait() until tween.PlaybackState == Enum.PlaybackState.Completed or finished
+            
+            task.wait(0.1)
+            statusLabel.Text = "Stealing..."
+            fireproximityprompt(targetPrompt)
+            task.wait(0.2)
+            statusLabel.Text = "Done!"
+        end
+    else
+        statusLabel.Text = "No active prompts found!"
+    end
+end
+
+tpBestBtn.MouseButton1Click:Connect(function()
+    pcall(safeStealRoutine)
+end)
+
+print("Safe Snatcher Debug Loaded.")
