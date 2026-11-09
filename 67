@@ -1,0 +1,124 @@
+-- Steal a Brainrot: Player Base Snatcher
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BaseSnatcherGUI"
+screenGui.ResetOnSpawn = false
+
+pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not screenGui.Parent then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -110, 0.3, -80)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(255, 100, 0) -- Orange Base Vibe
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "🏠 Base Raid Snatcher"
+title.TextColor3 = Color3.fromRGB(255, 100, 0)
+title.TextSize = 13
+title.Font = Enum.Font.SourceSansBold
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
+
+local tpBaseBtn = Instance.new("TextButton")
+tpBaseBtn.Size = UDim2.new(1, -20, 0, 45)
+tpBaseBtn.Position = UDim2.new(0, 10, 0, 45)
+tpBaseBtn.Text = "TP to Rival Base"
+tpBaseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBaseBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+tpBaseBtn.TextSize = 13
+tpBaseBtn.Font = Enum.Font.SourceSansBold
+tpBaseBtn.Parent = mainFrame
+Instance.new("UICorner", tpBaseBtn).CornerRadius = UDim.new(0, 6)
+
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 100)
+statusLabel.Text = "Status: Ready to raid"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 12
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextWrapped = true
+statusLabel.Parent = mainFrame
+
+local function raidPlayerBase()
+    statusLabel.Text = "Scanning rival player bases..."
+    
+    -- Look for the server's plots folder where player bases are instantiated
+    local plotsFolder = Workspace:FindFirstChild("Plots") or Workspace:FindFirstChild("PlayerPlots") or Workspace:FindFirstChild("Bases")
+    
+    if not plotsFolder then
+        -- Fallback: search workspace for objects owned by other players
+        statusLabel.Text = "Searching all base structures..."
+    end
+    
+    local targetPrompt = nil
+    local targetPart = nil
+    
+    -- Scan through plots or find prompts belonging to other player setups
+    local searchContainer = plotsFolder or Workspace
+    for _, descendant in ipairs(searchContainer:GetDescendants()) do
+        if descendant:IsA("ProximityPrompt") and descendant.Enabled then
+            local fullName = descendant:GetFullName():lower()
+            -- Ensure it's part of a base/podium and not an old static map prop
+            if not string.find(fullName, "candy") and not string.find(fullName, "shop") then
+                -- Check if parent belongs to another player's base area
+                targetPrompt = descendant
+                targetPart = descendant.Parent
+                break
+            end
+        end
+    end
+    
+    if targetPrompt and targetPart then
+        statusLabel.Text = "Base located! Raiding..."
+        local char = localPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            local hrp = char.HumanoidRootPart
+            local destCF = targetPart:IsA("BasePart") and targetPart.CFrame or hrp.CFrame
+            
+            -- Smooth tween straight into their base
+            local tween = TweenService:Create(hrp, TweenInfo.new(0.3, Enum.EasingStyle.Sine), {CFrame = destCF + Vector3.new(0, 3, 0)})
+            tween:Play()
+            
+            local finished = false
+            task.delay(0.5, function() finished = true end)
+            repeat task.wait() until tween.PlaybackState == Enum.PlaybackState.Completed or finished
+            
+            task.wait(0.1)
+            statusLabel.Text = "Snatching from base!"
+            fireproximityprompt(targetPrompt)
+            task.wait(0.2)
+            statusLabel.Text = "Raid complete!"
+        end
+    else
+        statusLabel.Text = "No active base items found."
+    end
+end
+
+tpBaseBtn.MouseButton1Click:Connect(function()
+    pcall(raidPlayerBase)
+end)
+
+print("Base Snatcher Loaded.")
