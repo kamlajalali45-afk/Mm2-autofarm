@@ -1,0 +1,190 @@
+-- Simple Player Flinger GUI
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlingerGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- State Variables
+local isFlingerActive = false
+
+-- UI Palette (Clean Dark & Neon Red Vibe)
+local Col_Background = Color3.fromRGB(25, 25, 30)
+local Col_Accent = Color3.fromRGB(255, 60, 60)
+local Col_Button = Color3.fromRGB(40, 40, 50)
+local Col_Text = Color3.fromRGB(240, 240, 240)
+
+-- Main Frame Setup
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 190, 0, 130)
+mainFrame.Position = UDim2.new(0.5, -95, 0.4, -65)
+mainFrame.BackgroundColor3 = Col_Background
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Col_Accent
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 30)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Text = "🌪️ Player Flinger"
+titleLabel.TextColor3 = Col_Accent
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = mainFrame
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.Text = "-"
+minimizeBtn.TextSize = 18
+minimizeBtn.TextColor3 = Col_Text
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+minimizeBtn.Parent = mainFrame
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 5)
+
+-- Floating Action Frame (Minimized)
+local floatingFrame = Instance.new("Frame")
+floatingFrame.Name = "FloatingFrame"
+floatingFrame.Size = UDim2.new(0, 100, 0, 40)
+floatingFrame.Position = UDim2.new(0.8, 0, 0.2, 0)
+floatingFrame.BackgroundColor3 = Col_Background
+floatingFrame.BackgroundTransparency = 0.1
+floatingFrame.Visible = false
+floatingFrame.Active = true
+floatingFrame.Parent = screenGui
+
+Instance.new("UICorner", floatingFrame).CornerRadius = UDim.new(0, 8)
+local floatStroke = Instance.new("UIStroke")
+floatStroke.Color = Col_Accent
+floatStroke.Thickness = 2
+floatStroke.Parent = floatingFrame
+
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 80, 0, 30)
+openBtn.Position = UDim2.new(0, 10, 0, 5)
+openBtn.Text = "Open GUI"
+openBtn.TextSize = 12
+openBtn.TextColor3 = Col_Text
+openBtn.BackgroundColor3 = Col_Button
+openBtn.Parent = floatingFrame
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 5)
+
+-- Flinger Toggle Button
+local flingBtn = Instance.new("TextButton")
+flingBtn.Name = "FlingBtn"
+flingBtn.Size = UDim2.new(1, -20, 0, 45)
+flingBtn.Position = UDim2.new(0, 10, 0, 45)
+flingBtn.Text = "Flinger: OFF"
+flingBtn.TextSize = 14
+flingBtn.TextColor3 = Col_Text
+flingBtn.BackgroundColor3 = Col_Button
+flingBtn.Font = Enum.Font.SourceSansBold
+flingBtn.Parent = mainFrame
+Instance.new("UICorner", flingBtn).CornerRadius = UDim.new(0, 6)
+
+-- Dragging Mechanics
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(floatingFrame)
+
+-- Fling Logic Loop
+RunService.Heartbeat:Connect(function()
+    if not isFlingerActive then return end
+    
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    -- Find the closest player
+    local target = nil
+    local shortestDist = 15 -- Range to trigger fling
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = player.Character.HumanoidRootPart
+            local dist = (hrp.Position - targetHRP.Position).Magnitude
+            if dist < shortestDist then
+                shortestDist = dist
+                target = targetHRP
+            end
+        end
+    end
+    
+    -- If a player is close, apply rapid spin / velocity burst to launch them
+    if target then
+        hrp.CFrame = target.CFrame
+        hrp.AssemblyLinearVelocity = Vector3.new(math.random(-5000, 5000), 5000, math.random(-5000, 5000))
+        hrp.AssemblyAngularVelocity = Vector3.new(99999, 99999, 99999)
+    end
+end)
+
+-- Button Bindings
+flingBtn.MouseButton1Click:Connect(function()
+    isFlingerActive = not isFlingerActive
+    flingBtn.Text = "Flinger: " .. (isFlingerActive and "ON" or "OFF")
+    flingBtn.BackgroundColor3 = isFlingerActive and Color3.fromRGB(120, 40, 40) or Col_Button
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    floatingFrame.Visible = true
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    floatingFrame.Visible = false
+end)
+
+print("Player Flinger GUI Loaded.")
