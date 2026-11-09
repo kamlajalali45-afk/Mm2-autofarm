@@ -1,0 +1,288 @@
+-- Blade Ball Pro Auto-Parry GUI
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BladeBallAutoParryGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- State Variables
+local isAutoParryActive = false
+local isVisualizerActive = false
+local parryDistance = 18 -- Distance threshold to trigger parry
+
+-- UI Palette (Cyberpunk / Neon Vibe)
+local Col_Background = Color3.fromRGB(15, 15, 20)
+local Col_Accent = Color3.fromRGB(0, 255, 150)
+local Col_Button = Color3.fromRGB(30, 30, 40)
+local Col_Text = Color3.fromRGB(240, 240, 240)
+
+-- Main Frame Setup
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 220, 0, 280)
+mainFrame.Position = UDim2.new(0.5, -110, 0.4, -140)
+mainFrame.BackgroundColor3 = Col_Background
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Col_Accent
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 35)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Text = "⚡ Blade Ball Auto-Parry ⚡"
+titleLabel.TextColor3 = Col_Accent
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = mainFrame
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.Text = "-"
+minimizeBtn.TextSize = 18
+minimizeBtn.TextColor3 = Col_Text
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 60)
+minimizeBtn.Parent = mainFrame
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 5)
+
+-- Floating Action Frame (Minimized)
+local floatingFrame = Instance.new("Frame")
+floatingFrame.Name = "FloatingFrame"
+floatingFrame.Size = UDim2.new(0, 110, 0, 45)
+floatingFrame.Position = UDim2.new(0.8, 0, 0.2, 0)
+floatingFrame.BackgroundColor3 = Col_Background
+floatingFrame.BackgroundTransparency = 0.1
+floatingFrame.Visible = false
+floatingFrame.Active = true
+floatingFrame.Parent = screenGui
+
+Instance.new("UICorner", floatingFrame).CornerRadius = UDim.new(0, 8)
+local floatStroke = Instance.new("UIStroke")
+floatStroke.Color = Col_Accent
+floatStroke.Thickness = 2
+floatStroke.Parent = floatingFrame
+
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 90, 0, 35)
+openBtn.Position = UDim2.new(0, 10, 0, 5)
+openBtn.Text = "Open GUI"
+openBtn.TextSize = 12
+openBtn.TextColor3 = Col_Text
+openBtn.BackgroundColor3 = Col_Button
+openBtn.Parent = floatingFrame
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 5)
+
+local function createButton(name, text, positionY)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, -20, 0, 32)
+    btn.Position = UDim2.new(0, 10, 0, positionY)
+    btn.Text = text
+    btn.TextSize = 13
+    btn.TextColor3 = Col_Text
+    btn.BackgroundColor3 = Col_Button
+    btn.Font = Enum.Font.SourceSansSemibold
+    btn.Parent = mainFrame
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local parryBtn = createButton("ParryBtn", "Auto-Parry: OFF", 45)
+local visualBtn = createButton("VisualBtn", "Ball ESP: OFF", 85)
+
+-- Distance Control UI
+local distLabel = Instance.new("TextLabel")
+distLabel.Size = UDim2.new(1, -20, 0, 20)
+distLabel.Position = UDim2.new(0, 10, 0, 130)
+distLabel.Text = "Parry Distance: 18 studs"
+distLabel.TextColor3 = Color3.fromRGB(180, 200, 200)
+distLabel.TextSize = 12
+distLabel.Font = Enum.Font.SourceSans
+distLabel.BackgroundTransparency = 1
+distLabel.TextXAlignment = Enum.TextXAlignment.Left
+distLabel.Parent = mainFrame
+
+local distDownBtn = Instance.new("TextButton")
+distDownBtn.Size = UDim2.new(0, 45, 0, 25)
+distDownBtn.Position = UDim2.new(0, 10, 0, 155)
+distDownBtn.Text = "- Dist"
+distDownBtn.TextSize = 12
+distDownBtn.TextColor3 = Col_Text
+distDownBtn.BackgroundColor3 = Col_Button
+distDownBtn.Parent = mainFrame
+Instance.new("UICorner", distDownBtn).CornerRadius = UDim.new(0, 5)
+
+local distUpBtn = Instance.new("TextButton")
+distUpBtn.Size = UDim2.new(0, 45, 0, 25)
+distUpBtn.Position = UDim2.new(0, 60, 0, 155)
+distUpBtn.Text = "+ Dist"
+distUpBtn.TextSize = 12
+distUpBtn.TextColor3 = Col_Text
+distUpBtn.BackgroundColor3 = Col_Button
+distUpBtn.Parent = mainFrame
+Instance.new("UICorner", distUpBtn).CornerRadius = UDim.new(0, 5)
+
+-- Dragging Mechanics
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(floatingFrame)
+
+-- Find Active Ball Helper
+local function getActiveBall()
+    local workspaceFolder = Workspace:FindFirstChild("Balls") or Workspace
+    for _, obj in ipairs(workspaceFolder:GetChildren()) do
+        if obj:IsA("BasePart") and (obj.Name == "Ball" or obj.Name:lower():find("ball")) then
+            return obj
+        end
+    end
+    -- Fallback search recursive if not in direct folder
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == "Ball" and obj:FindFirstChild("ZoomVisualizer") or (obj.AssemblyLinearVelocity.Magnitude > 5) then
+            return obj
+        end
+    end
+    return nil
+end
+
+-- Trigger Parry Action (Simulates pressing 'F' or clicking to parry)
+local function triggerParry()
+    VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+    task.wait(0.02)
+    VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+end
+
+-- Visualizer Highlight for the Ball
+local ballHighlight = Instance.new("Highlight")
+ballHighlight.FillColor = Color3.fromRGB(0, 255, 150)
+ballHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+
+RunService.RenderStepped:Connect(function()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    
+    local ball = getActiveBall()
+    
+    -- Visualizer Logic
+    if isVisualizerActive and ball then
+        ballHighlight.Adornee = ball
+        ballHighlight.Parent = ball
+    else
+        ballHighlight.Parent = nil
+    end
+    
+    -- Auto Parry Core Loop
+    if isAutoParryActive and ball then
+        local hrp = char.HumanoidRootPart
+        local distance = (hrp.Position - ball.Position).Magnitude
+        
+        -- Check if ball is targeting the local player (moving towards us)
+        local toPlayer = (hrp.Position - ball.Position).Unit
+        local ballVelocity = ball.AssemblyLinearVelocity
+        
+        if ballVelocity.Magnitude > 0 then
+            local dotProduct = ballVelocity.Unit:Dot(toPlayer)
+            -- If ball is heading toward player and within distance threshold
+            if dotProduct > 0.3 and distance <= parryDistance then
+                triggerParry()
+                task.wait(0.15) -- Cooldown to prevent spamming
+            end
+        end
+    end
+end)
+
+-- Button Event Bindings
+parryBtn.MouseButton1Click:Connect(function()
+    isAutoParryActive = not isAutoParryActive
+    parryBtn.Text = "Auto-Parry: " .. (isAutoParryActive and "ON" or "OFF")
+    parryBtn.BackgroundColor3 = isAutoParryActive and Color3.fromRGB(0, 150, 75) or Col_Button
+end)
+
+visualBtn.MouseButton1Click:Connect(function()
+    isVisualizerActive = not isVisualizerActive
+    visualBtn.Text = "Ball ESP: " .. (isVisualizerActive and "ON" or "OFF")
+    visualBtn.BackgroundColor3 = isVisualizerActive and Color3.fromRGB(0, 150, 75) or Col_Button
+    
+    if not isVisualizerActive then
+        ballHighlight.Parent = nil
+    end
+end)
+
+distUpBtn.MouseButton1Click:Connect(function()
+    if parryDistance < 35 then
+        parryDistance = parryDistance + 1
+        distLabel.Text = "Parry Distance: " .. parryDistance .. " studs"
+    end
+end)
+
+distDownBtn.MouseButton1Click:Connect(function()
+    if parryDistance > 10 then
+        parryDistance = parryDistance - 1
+        distLabel.Text = "Parry Distance: " .. parryDistance .. " studs"
+    end
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    floatingFrame.Visible = true
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    floatingFrame.Visible = false
+end)
+
+print("Blade Ball Auto-Parry GUI Loaded.")
