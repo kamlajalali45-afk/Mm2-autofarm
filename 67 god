@@ -1,0 +1,153 @@
+-- Coco's Time Trial: World Record Auto-Obby Solver
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create GUI Hub
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CocoTrialProGUI"
+screenGui.ResetOnSpawn = false
+
+pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not screenGui.Parent then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- UI Theme (Pro Hacker Vibe)
+local Col_Bg = Color3.fromRGB(12, 12, 18)
+local Col_Accent = Color3.fromRGB(255, 215, 0) -- Gold WR Vibe
+local Col_Btn = Color3.fromRGB(25, 25, 35)
+local Col_Text = Color3.fromRGB(255, 255, 255)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 240, 0, 190)
+mainFrame.Position = UDim2.new(0.5, -120, 0.3, -95)
+mainFrame.BackgroundColor3 = Col_Bg
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Col_Accent
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "🏆 Coco WR Auto-Obby"
+title.TextColor3 = Col_Accent
+title.TextSize = 13
+title.Font = Enum.Font.SourceSansBold
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
+
+-- Auto Run / Solver Toggle Button
+local solveBtn = Instance.new("TextButton")
+solveBtn.Size = UDim2.new(1, -20, 0, 45)
+solveBtn.Position = UDim2.new(0, 10, 0, 45)
+solveBtn.Text = "Start WR Auto-Solve: OFF"
+solveBtn.TextColor3 = Col_Text
+solveBtn.BackgroundColor3 = Col_Btn
+solveBtn.TextSize = 12
+solveBtn.Font = Enum.Font.SourceSansBold
+solveBtn.Parent = mainFrame
+Instance.new("UICorner", solveBtn).CornerRadius = UDim.new(0, 6)
+
+-- Instant Finish / End TP Button
+local finishBtn = Instance.new("TextButton")
+finishBtn.Size = UDim2.new(1, -20, 0, 35)
+finishBtn.Position = UDim2.new(0, 10, 0, 100)
+finishBtn.Text = "Instant Teleport to Finish"
+finishBtn.TextColor3 = Col_Text
+finishBtn.BackgroundColor3 = Col_Btn
+finishBtn.TextSize = 12
+finishBtn.Font = Enum.Font.SourceSansBold
+finishBtn.Parent = mainFrame
+Instance.new("UICorner", finishBtn).CornerRadius = UDim.new(0, 6)
+
+-- Status Label
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 35)
+statusLabel.Position = UDim2.new(0, 10, 0, 145)
+statusLabel.Text = "Status: Ready for world record"
+statusLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+statusLabel.TextSize = 11
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextWrapped = true
+statusLabel.Parent = mainFrame
+
+local autoSolving = false
+
+solveBtn.MouseButton1Click:Connect(function()
+    autoSolving = not autoSolving
+    solveBtn.Text = "Start WR Auto-Solve: " .. (autoSolving and "ON" | "OFF")
+    solveBtn.TextColor3 = autoSolving and Color3.fromRGB(0, 255, 100) or Col_Text
+end)
+
+-- Instant Teleport to End/Finish Part
+finishBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        statusLabel.Text = "Teleporting to finish line..."
+        local char = localPlayer.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = char.HumanoidRootPart
+        
+        -- Look for finish parts, end platforms, or checkpoints in the map
+        local targetPart = nil
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                local name = obj.Name:lower()
+                if name:find("finish") or name:find("end") or name:find("win") or name:find("goal") then
+                    targetPart = obj
+                    break
+                end
+            end
+        end
+        
+        if targetPart then
+            hrp.CFrame = targetPart.CFrame + Vector3.new(0, 3, 0)
+            statusLabel.Text = "Successfully reached finish!"
+        else
+            statusLabel.Text = "Finish line part not found."
+        end
+    end)
+end)
+
+-- Pro WR Pathfinding / Checkpoint hopper
+RunService.RenderStepped:Connect(function()
+    if not autoSolving then return end
+    
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    
+    if humanoid then
+        humanoid.WalkSpeed = 28 -- Speed boost optimized for obby timing
+    end
+    
+    -- Find next checkpoint or stage part
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local name = obj.Name:lower()
+            if name:find("checkpoint") or name:find("stage") or name:find("part") then
+                -- Check if it's close ahead and move smoothly towards it
+                local dist = (hrp.Position - obj.Position).Magnitude
+                if dist < 45 and dist > 5 then
+                    hrp.CFrame = CFrame.new(hrp.Position:Lerp(obj.Position + Vector3.new(0, 3, 0), 0.15))
+                    break
+                end
+            end
+        end
+    end
+end)
+
+print("Coco WR Auto-Obby Loaded.")
