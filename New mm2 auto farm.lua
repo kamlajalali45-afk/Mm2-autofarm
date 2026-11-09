@@ -1,0 +1,358 @@
+-- MM2 GUI with Role-Based Full Body ESP, Fixed Autofarm & Auto-Shoot
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MM2AdminGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- State Variables
+local isAutofarming = false
+local isEspActive = false
+local espHighlights = {}
+
+-- Main Frame Setup
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 220, 0, 260)
+mainFrame.Position = UDim2.new(0.5, -110, 0.4, -130)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 35)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Text = "MM2 Admin Menu"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 16
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = mainFrame
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.Text = "-"
+minimizeBtn.TextSize = 18
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
+minimizeBtn.Parent = mainFrame
+
+local minCorner = Instance.new("UICorner")
+minCorner.CornerRadius = UDim.new(0, 5)
+minCorner.Parent = minimizeBtn
+
+-- Floating Action Frame (Minimized state)
+local floatingFrame = Instance.new("Frame")
+floatingFrame.Name = "FloatingFrame"
+floatingFrame.Size = UDim2.new(0, 140, 0, 45)
+floatingFrame.Position = UDim2.new(0.8, 0, 0.2, 0)
+floatingFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+floatingFrame.BackgroundTransparency = 0.2
+floatingFrame.Visible = false
+floatingFrame.Active = true
+floatingFrame.Parent = screenGui
+
+local floatCorner = Instance.new("UICorner")
+floatCorner.CornerRadius = UDim.new(0, 8)
+floatCorner.Parent = floatingFrame
+
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 25, 0, 35)
+openBtn.Position = UDim2.new(0, 5, 0, 5)
+openBtn.Text = "+"
+openBtn.TextSize = 18
+openBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+openBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
+openBtn.Parent = floatingFrame
+
+local openCorner = Instance.new("UICorner")
+openCorner.CornerRadius = UDim.new(0, 5)
+openCorner.Parent = openBtn
+
+local function createButton(name, text, positionY)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, -20, 0, 35)
+    btn.Position = UDim2.new(0, 10, 0, positionY)
+    btn.Text = text
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+    btn.Font = Enum.Font.SourceSansSemibold
+    btn.Parent = mainFrame
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    
+    return btn
+end
+
+local espBtn = createButton("EspBtn", "ESP: OFF", 40)
+local farmBtn = createButton("FarmBtn", "Autofarm: OFF", 85)
+local getGunBtn = createButton("GetGunBtn", "Get Gun", 130)
+local shootMurdBtn = createButton("ShootMurdBtn", "Shoot Murderer", 175)
+
+-- Floating Quick Action Buttons
+local floatGunBtn = Instance.new("TextButton")
+floatGunBtn.Size = UDim2.new(0, 48, 0, 35)
+floatGunBtn.Position = UDim2.new(0, 35, 0, 5)
+floatGunBtn.Text = "Gun"
+floatGunBtn.TextSize = 12
+floatGunBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatGunBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+floatGunBtn.Parent = floatingFrame
+
+local fgCorner = Instance.new("UICorner")
+fgCorner.CornerRadius = UDim.new(0, 5)
+fgCorner.Parent = floatGunBtn
+
+local floatShootBtn = Instance.new("TextButton")
+floatShootBtn.Size = UDim2.new(0, 48, 0, 35)
+floatShootBtn.Position = UDim2.new(0, 87, 0, 5)
+floatShootBtn.Text = "Shoot"
+floatShootBtn.TextSize = 12
+floatShootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatShootBtn.BackgroundColor3 = Color3.fromRGB(215, 50, 50)
+floatShootBtn.Parent = floatingFrame
+
+local fsCorner = Instance.new("UICorner")
+fsCorner.CornerRadius = UDim.new(0, 5)
+fsCorner.Parent = floatShootBtn
+
+-- Dragging Mechanics
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(floatingFrame)
+
+-- ESP Role Highlights
+local function updateESP()
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local char = player.Character
+            local highlight = espHighlights[player]
+            
+            if isEspActive then
+                if not highlight then
+                    highlight = Instance.new("Highlight")
+                    highlight.Adornee = char
+                    highlight.Parent = char
+                    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    espHighlights[player] = highlight
+                else
+                    highlight.Adornee = char
+                end
+                
+                local backpack = player:FindFirstChild("Backpack")
+                local role = "Innocent"
+                
+                local function scanContainer(c)
+                    if not c then return end
+                    for _, item in ipairs(c:GetChildren()) do
+                        if item:IsA("Tool") then
+                            if item.Name == "Knife" then return "Murderer"
+                            elseif item.Name == "Gun" then return "Sheriff" end
+                        end
+                    end
+                end
+                
+                if scanContainer(char) == "Murderer" or scanContainer(backpack) == "Murderer" then
+                    role = "Murderer"
+                elseif scanContainer(char) == "Sheriff" or scanContainer(backpack) == "Sheriff" then
+                    role = "Sheriff"
+                end
+                
+                if role == "Murderer" then
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(200, 0, 0)
+                elseif role == "Sheriff" then
+                    highlight.FillColor = Color3.fromRGB(0, 120, 255)
+                    highlight.OutlineColor = Color3.fromRGB(0, 80, 200)
+                else
+                    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+                    highlight.OutlineColor = Color3.fromRGB(0, 200, 0)
+                end
+            else
+                if highlight then
+                    highlight:Destroy()
+                    espHighlights[player] = nil
+                end
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    if isEspActive then
+        updateESP()
+    end
+end)
+
+-- Action: Teleport to Dropped Gun
+local function executeGetGun()
+    local char = localPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local gunDrop = Workspace:FindFirstChild("GunDrop", true)
+        if gunDrop then
+            if gunDrop:IsA("BasePart") then
+                char.HumanoidRootPart.CFrame = gunDrop.CFrame
+            elseif gunDrop:IsA("Model") and gunDrop.PrimaryPart then
+                char.HumanoidRootPart.CFrame = gunDrop.PrimaryPart.CFrame
+            end
+        end
+    end
+end
+
+-- Action: Teleport directly behind Murderer & Shoot
+local function executeShootMurderer()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character then
+            local backpack = player:FindFirstChild("Backpack")
+            local pChar = player.Character
+            
+            local function isMurd(container)
+                if not container then return false end
+                for _, item in ipairs(container:GetChildren()) do
+                    if item.Name == "Knife" then return true end
+                end
+                return false
+            end
+            
+            if isMurd(pChar) or isMurd(backpack) then
+                if pChar:FindFirstChild("HumanoidRootPart") then
+                    local murdCFrame = pChar.HumanoidRootPart.CFrame
+                    -- Teleport behind murderer facing them
+                    char.HumanoidRootPart.CFrame = murdCFrame * CFrame.new(0, 0, 3)
+                    
+                    local gun = char:FindFirstChild("Gun") or localPlayer.Backpack:FindFirstChild("Gun")
+                    if gun and char:FindFirstChildOfClass("Humanoid") then
+                        char.Humanoid:EquipTool(gun)
+                        task.wait(0.1)
+                        gun:Activate()
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Fixed Deep Workspace Collector for Coins/Candy
+local function collectItems()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or char.Humanoid.Health <= 0 then return end
+    
+    -- Recursive search through all workspace descendants for collectable parts
+    for _, desc in ipairs(Workspace:GetDescendants()) do
+        if desc:IsA("BasePart") and desc:FindFirstChildOfClass("TouchTransmitter") then
+            local pName = desc.Name:lower()
+            local parentName = desc.Parent and desc.Parent.Name:lower() or ""
+            
+            if pName:find("coin") or pName:find("candy") or parentName:find("coin") or parentName:find("candy") then
+                char.HumanoidRootPart.CFrame = desc.CFrame
+                task.wait(0.15)
+                if not isAutofarming then break end
+            end
+        end
+    end
+end
+
+-- Button Connections
+getGunBtn.MouseButton1Click:Connect(executeGetGun)
+floatGunBtn.MouseButton1Click:Connect(executeGetGun)
+
+shootMurdBtn.MouseButton1Click:Connect(executeShootMurderer)
+floatShootBtn.MouseButton1Click:Connect(executeShootMurderer)
+
+espBtn.MouseButton1Click:Connect(function()
+    isEspActive = not isEspActive
+    espBtn.Text = "ESP: " .. (isEspActive and "ON" or "OFF")
+    espBtn.BackgroundColor3 = isEspActive and Color3.fromRGB(0, 150, 75) or Color3.fromRGB(45, 45, 50)
+    
+    if not isEspActive then
+        for _, highlight in pairs(espHighlights) do
+            highlight:Destroy()
+        end
+        espHighlights = {}
+    end
+end)
+
+farmBtn.MouseButton1Click:Connect(function()
+    isAutofarming = not isAutofarming
+    farmBtn.Text = "Autofarm: " .. (isAutofarming and "ON" or "OFF")
+    farmBtn.BackgroundColor3 = isAutofarming and Color3.fromRGB(0, 150, 75) or Color3.fromRGB(45, 45, 50)
+    
+    if isAutofarming then
+        task.spawn(function()
+            while isAutofarming do
+                collectItems()
+                task.wait(0.5)
+            end
+        end)
+    end
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    floatingFrame.Visible = true
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    floatingFrame.Visible = false
+end)
+
+print("Updated MM2 Menu Loaded.")
