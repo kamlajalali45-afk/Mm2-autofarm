@@ -1,0 +1,147 @@
+-- Steal a Brainrot: Safe & Smooth Auto-Snatcher GUI
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create GUI Hub
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SafeBrainrotGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- Theme Colors
+local Col_Bg = Color3.fromRGB(20, 20, 25)
+local Col_Accent = Color3.fromRGB(0, 220, 130) -- Safe Green Vibe
+local Col_Btn = Color3.fromRGB(35, 35, 45)
+local Col_Text = Color3.fromRGB(255, 255, 255)
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 220, 0, 160)
+mainFrame.Position = UDim2.new(0.5, -110, 0.3, -80)
+mainFrame.BackgroundColor3 = Col_Bg
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+local stroke = Instance.new("UIStroke")
+stroke.Color = Col_Accent
+stroke.Thickness = 2
+stroke.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 35)
+title.Text = "🛡️ Safe Snatcher"
+title.TextColor3 = Col_Accent
+title.TextSize = 13
+title.Font = Enum.Font.SourceSansBold
+title.BackgroundTransparency = 1
+title.Parent = mainFrame
+
+-- Safe Teleport & Steal Button
+local tpBestBtn = Instance.new("TextButton")
+tpBestBtn.Size = UDim2.new(1, -20, 0, 45)
+tpBestBtn.Position = UDim2.new(0, 10, 0, 45)
+tpBestBtn.Text = "Safe TP & Steal"
+tpBestBtn.TextColor3 = Col_Text
+tpBestBtn.BackgroundColor3 = Col_Btn
+tpBestBtn.TextSize = 13
+tpBestBtn.Font = Enum.Font.SourceSansBold
+tpBestBtn.Parent = mainFrame
+Instance.new("UICorner", tpBestBtn).CornerRadius = UDim.new(0, 6)
+
+-- Status Display
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(1, -20, 0, 40)
+statusLabel.Position = UDim2.new(0, 10, 0, 100)
+statusLabel.Text = "Status: Safe Mode Active"
+statusLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+statusLabel.TextSize = 12
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextWrapped = true
+statusLabel.Parent = mainFrame
+
+-- Safe Movement Function (Smooth Tween instead of harsh snap)
+local function smoothMoveTo(targetCFrame)
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    
+    -- Calculate distance to adjust speed naturally
+    local dist = (hrp.Position - targetCFrame.Position).Magnitude
+    local travelTime = math.clamp(dist / 350, 0.1, 0.6) -- Scales speed based on distance
+    
+    local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(hrp, tweenInfo, {CFrame = targetCFrame})
+    
+    tween:Play()
+    tween.Completed:Wait()
+end
+
+local function safeStealRoutine()
+    statusLabel.Text = "Scanning plots safely..."
+    task.wait(0.1) -- Anti-spam delay
+    
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then
+        statusLabel.Text = "Error: Plots folder missing."
+        return
+    end
+    
+    local bestPodium = nil
+    local maxVal = -1
+    local targetPrompt = nil
+    
+    for _, plot in ipairs(plots:GetChildren()) do
+        local owner = plot:GetAttribute("Owner")
+        if owner ~= localPlayer.Name then
+            local brainrotsFolder = plot:FindFirstChild("Brainrots") or plot
+            for _, podium in ipairs(brainrotsFolder:GetChildren()) do
+                local valAttr = podium:GetAttribute("Generation") or podium:GetAttribute("Value") or 1
+                if valAttr > maxVal then
+                    local prompt = podium:FindFirstChildWhichIsA("ProximityPrompt", true)
+                    if prompt then
+                        maxVal = valAttr
+                        bestPodium = podium
+                        targetPrompt = prompt
+                    end
+                end
+            end
+        end
+    end
+    
+    if bestPodium and targetPrompt then
+        statusLabel.Text = "Moving smoothly to target..."
+        local targetCF = bestPodium.PrimaryPart and bestPodium.PrimaryPart.CFrame or bestPodium:GetPivot()
+        
+        -- Offset slightly above/beside to prevent clipping bugs
+        smoothMoveTo(targetCF + Vector3.new(0, 3, 0))
+        
+        -- Human-like reaction delay before interacting
+        task.wait(0.2)
+        
+        statusLabel.Text = "Stealing asset..."
+        fireproximityprompt(targetPrompt)
+        
+        task.wait(0.3)
+        statusLabel.Text = "Done! Action complete."
+    else
+        statusLabel.Text = "No valid targets found."
+    end
+end
+
+tpBestBtn.MouseButton1Click:Connect(function()
+    pcall(safeStealRoutine)
+end)
+
+print("Safe Brainrot GUI Loaded.")
