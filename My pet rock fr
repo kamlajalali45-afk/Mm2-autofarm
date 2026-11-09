@@ -1,0 +1,193 @@
+-- Global Pet Rock Size Changers GUI
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+
+-- Create Main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PetRockSizeGUI"
+screenGui.ResetOnSpawn = false
+
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- UI Palette (Clean Dark Vibe)
+local Col_Background = Color3.fromRGB(25, 25, 30)
+local Col_Accent = Color3.fromRGB(180, 160, 140)
+local Col_Button = Color3.fromRGB(40, 40, 50)
+local Col_Text = Color3.fromRGB(240, 240, 240)
+
+-- Main Frame Setup
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 210, 0, 240)
+mainFrame.Position = UDim2.new(0.5, -105, 0.4, -120)
+mainFrame.BackgroundColor3 = Col_Background
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 8)
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Col_Accent
+mainStroke.Thickness = 2
+mainStroke.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -40, 0, 35)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.Text = "🪨 Pet Rock Size Changer"
+titleLabel.TextColor3 = Col_Accent
+titleLabel.TextSize = 13
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.BackgroundTransparency = 1
+titleLabel.Parent = mainFrame
+
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+minimizeBtn.Text = "-"
+minimizeBtn.TextSize = 18
+minimizeBtn.TextColor3 = Col_Text
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 65)
+minimizeBtn.Parent = mainFrame
+Instance.new("UICorner", minimizeBtn).CornerRadius = UDim.new(0, 5)
+
+-- Floating Action Frame (Minimized)
+local floatingFrame = Instance.new("Frame")
+floatingFrame.Name = "FloatingFrame"
+floatingFrame.Size = UDim2.new(0, 100, 0, 40)
+floatingFrame.Position = UDim2.new(0.8, 0, 0.2, 0)
+floatingFrame.BackgroundColor3 = Col_Background
+floatingFrame.BackgroundTransparency = 0.1
+floatingFrame.Visible = false
+floatingFrame.Active = true
+floatingFrame.Parent = screenGui
+
+Instance.new("UICorner", floatingFrame).CornerRadius = UDim.new(0, 8)
+local floatStroke = Instance.new("UIStroke")
+floatStroke.Color = Col_Accent
+floatStroke.Thickness = 2
+floatStroke.Parent = floatingFrame
+
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 80, 0, 30)
+openBtn.Position = UDim2.new(0, 10, 0, 5)
+openBtn.Text = "Open GUI"
+openBtn.TextSize = 12
+openBtn.TextColor3 = Col_Text
+openBtn.BackgroundColor3 = Col_Button
+openBtn.Parent = floatingFrame
+Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 5)
+
+local function createButton(name, text, positionY)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.Size = UDim2.new(1, -20, 0, 32)
+    btn.Position = UDim2.new(0, 10, 0, positionY)
+    btn.Text = text
+    btn.TextSize = 13
+    btn.TextColor3 = Col_Text
+    btn.BackgroundColor3 = Col_Button
+    btn.Font = Enum.Font.SourceSansSemibold
+    btn.Parent = mainFrame
+    
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    return btn
+end
+
+local tinyBtn = createButton("TinyBtn", "Tiny Rock", 45)
+local normalBtn = createButton("NormalBtn", "Normal Rock", 85)
+local giantBtn = createButton("GiantBtn", "Giant Boulder", 125)
+local titanBtn = createButton("TitanBtn", "Godzilla Rock", 165)
+
+-- Dragging Mechanics
+local function makeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(floatingFrame)
+
+-- Function to find and scale the player's pet rock globally in the server workspace
+local function setPetRockSize(multiplier)
+    pcall(function()
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            -- Look for parts or models associated with your user name or labeled as pet rock
+            if obj.Name:lower():find("rock") or obj.Name:lower():find("pet") then
+                if obj:IsA("BasePart") and obj.Parent and (obj.Parent.Name == localPlayer.Name or obj:IsDescendantOf(localPlayer.Character or workspace)) then
+                    obj.Size = obj.Size * multiplier
+                elseif obj:IsA("Model") and obj.Name:lower():find("rock") then
+                    local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    if primary then
+                        obj:ScaleTo(multiplier)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Button Bindings
+tinyBtn.MouseButton1Click:Connect(function()
+    setPetRockSize(0.5)
+end)
+
+normalBtn.MouseButton1Click:Connect(function()
+    setPetRockSize(1.0)
+end)
+
+giantBtn.MouseButton1Click:Connect(function()
+    setPetRockSize(3.0)
+end)
+
+titanBtn.MouseButton1Click:Connect(function()
+    setPetRockSize(8.0)
+end)
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    floatingFrame.Visible = true
+end)
+
+openBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    floatingFrame.Visible = false
+end)
+
+print("Pet Rock Size GUI Loaded.")
