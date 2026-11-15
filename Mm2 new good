@@ -1,0 +1,340 @@
+-- MM2 Delta Script by DeepHat (Kindo)
+-- Features: ESP, Auto-Shoot, Auto-Equip, Auto-Loot, Auto-Chat, Draggable GUI
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local camera = workspace.CurrentCamera
+
+local state = {
+    esp = false,
+    autoShoot = false,
+    autoEquip = false,
+    autoLoot = false,
+    autoChat = false,
+    guiOpen = true,
+    guiPos = UDim2.fromScale(0.05, 0.05),
+    dragging = false,
+    dragStart = Vector2.zero,
+    dragOffset = UDim2.new()
+}
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "DeepHatMM2"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Name = "MainFrame"
+frame.Size = UDim2.new(0, 250, 0, 350)
+frame.Position = state.guiPos
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+frame.BorderSizePixel = 1
+frame.Active = true
+frame.Draggable = false
+frame.Parent = gui
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.Position = UDim2.fromScale(0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = frame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Text = "DeepHat MM2 Hub [Drag Me]"
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 14
+titleLabel.Size = UDim2.new(1, -30, 1, 0)
+titleLabel.Parent = titleBar
+
+local shrinkBtn = Instance.new("TextButton")
+shrinkBtn.Text = "[-]"
+shrinkBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+shrinkBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+shrinkBtn.Font = Enum.Font.GothamBold
+shrinkBtn.TextSize = 14
+shrinkBtn.Size = UDim2.new(0, 30, 1, 0)
+shrinkBtn.Position = UDim2.fromScale(1, 0)
+shrinkBtn.Parent = titleBar
+
+local content = Instance.new("Frame")
+content.Name = "Content"
+content.Size = UDim2.new(1, -10, 1, -40)
+content.Position = UDim2.new(0, 5, 0, 35)
+content.BackgroundTransparency = 1
+content.Parent = frame
+
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, 0)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 6
+scroll.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 400)
+scroll.Parent = content
+
+local toggleData = {
+    {name = "ESP (Player Boxes)", key = "esp", desc = "Draws boxes around players"},
+    {name = "Auto-Shoot", key = "autoShoot", desc = "Fires at closest enemy"},
+    {name = "Auto-Equip (Best Gun)", key = "autoEquip", desc = "Auto-equips highest tier weapon"},
+    {name = "Auto-Loot", key = "autoLoot", desc = "Auto-picks up dropped items"},
+    {name = "Auto-Chat", key = "autoChat", desc = "Spams status to chat"}
+}
+
+local toggleButtons = {}
+local yOffset = 0
+
+for _, data in ipairs(toggleData) do
+    local y = yOffset
+    yOffset = yOffset + 50
+    
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(1, -10, 0, 45)
+    container.Position = UDim2.new(0, 5, 0, y)
+    container.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    container.BorderSizePixel = 0
+    container.Parent = scroll
+
+    local label = Instance.new("TextLabel")
+    label.Text = data.name
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.Font = Enum.Font.GothamMedium
+    label.TextSize = 14
+    label.Size = UDim2.new(0.5, 0, 0.5, 0)
+    label.Position = UDim2.new(0, 10, 0, 5)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
+
+    local desc = Instance.new("TextLabel")
+    desc.Text = data.desc
+    desc.BackgroundTransparency = 1
+    desc.TextColor3 = Color3.fromRGB(150, 150, 150)
+    desc.Font = Enum.Font.Gotham
+    desc.TextSize = 10
+    desc.Size = UDim2.new(0.5, 0, 0.5, 0)
+    desc.Position = UDim2.new(0, 10, 0, 25)
+    desc.TextXAlignment = Enum.TextXAlignment.Left
+    desc.Parent = container
+
+    local btn = Instance.new("TextButton")
+    btn.Text = "OFF"
+    btn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 12
+    btn.Size = UDim2.new(0, 60, 0, 30)
+    btn.Position = UDim2.new(1, -70, 0.5, -15)
+    btn.Parent = container
+
+    toggleButtons[data.key] = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        state[data.key] = not state[data.key]
+        btn.Text = state[data.key] and "ON" or "OFF"
+        btn.BackgroundColor3 = state[data.key] and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(150, 50, 50)
+        print(("[MM2] %s toggled to %s"):format(data.name, btn.Text))
+    end)
+end
+
+-- GUI Logic: Dragging
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        state.dragging = true
+        state.dragStart = input.Position
+    end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        state.dragging = false
+    end
+end)
+
+gui.InputBegan:Connect(function(input)
+    if state.dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local x = input.Position.X - state.dragStart.X
+        local y = input.Position.Y - state.dragStart.Y
+        frame.Position = UDim2.fromOffset(state.guiPos.Offset.X + x, state.guiPos.Offset.Y + y)
+    end
+end)
+
+-- Shrink Logic
+shrinkBtn.MouseButton1Click:Connect(function()
+    state.guiOpen = not state.guiOpen
+    if state.guiOpen then
+        content.Size = UDim2.new(1, -10, 1, -40)
+        frame.Size = UDim2.new(0, 250, 0, 350)
+        shrinkBtn.Text = "[-]"
+    else
+        content.Size = UDim2.new(1, -10, 0, 0)
+        frame.Size = UDim2.new(0, 250, 0, 30)
+        shrinkBtn.Text = "[+]"
+    end
+end)
+
+-- Core Logic Functions
+local function getEquippedWeapon()
+    local tool = character:FindFirstChildWhichIsA("Tool")
+    return tool
+end
+
+local function findClosestEnemy()
+    local closest = nil
+    local closestDist = math.huge
+    for _, other in ipairs(Players:GetPlayers()) do
+        if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = other.Character:FindFirstChild("HumanoidRootPart")
+            local dist = (hrp.Position - rootPart.Position).Magnitude
+            if dist < closestDist and dist < 100 then
+                closest = other
+                closestDist = dist
+            end
+        end
+    end
+    return closest
+end
+
+local function autoEquipBest()
+    local backpack = player:WaitForChild("Backpack")
+    local bestTool = nil
+    local bestTier = 0
+    
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            local tier = item:GetAttribute("Tier") or 1
+            if tier > bestTier then
+                bestTier = tier
+                bestTool = item
+            end
+        end
+    end
+    
+    if bestTool and getEquippedWeapon() ~= bestTool then
+        player:SelectTool(bestTool)
+        print(("[MM2] Auto-equipped %s (Tier %d)"):format(bestTool.Name, bestTier))
+    end
+end
+
+local function autoLoot()
+    for _, part in ipairs(workspace:GetChildren()) do
+        if part:IsA("BasePart") and part:GetAttribute("Lootable") then
+            if (part.Position - rootPart.Position).Magnitude < 15 then
+                -- Simulate picking up (MM2 uses specific methods, but this triggers proximity)
+                part:BreakJoints()
+                -- In MM2, usually just being near it or touching it works. 
+                -- We can force a touch event if needed, but proximity is standard.
+            end
+        end
+    end
+end
+
+local function autoChat()
+    local lastChat = 0
+    return function()
+        if os.clock() - lastChat > 30 then
+            local features = {}
+            for k, v in pairs(state) do
+                if type(v) == "boolean" and v and k ~= "guiOpen" and k ~= "dragging" then
+                    table.insert(features, k)
+                end
+            end
+            local msg = table.concat(features, ", ")
+            player:Chat("[DeepHat] Active: " .. (msg or "None"))
+            lastChat = os.clock()
+        end
+    end
+end
+
+local chatFunc = autoChat()
+
+-- Main Loop
+RunService.Heartbeat:Connect(function()
+    if not character or not character:FindFirstChild("HumanoidRootPart") then
+        character = player.Character or player.CharacterAdded:Wait()
+        rootPart = character:WaitForChild("HumanoidRootPart")
+        return
+    end
+
+    -- ESP
+    if state.esp then
+        for _, other in ipairs(Players:GetPlayers()) do
+            if other ~= player and other.Character and other.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = other.Character:FindFirstChild("HumanoidRootPart")
+                -- Simple BillboardGui ESP (lightweight)
+                local bb = hrp:FindFirstChild("DeepHatESP")
+                if not bb then
+                    bb = Instance.new("BillboardGui")
+                    bb.Name = "DeepHatESP"
+                    bb.Size = UDim2.fromOffset(100, 20)
+                    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+                    bb.AlwaysOnTop = true
+                    bb.Parent = hrp
+                    local label = Instance.new("TextLabel")
+                    label.Size = UDim2.fromScale(1, 1)
+                    label.BackgroundTransparency = 1
+                    label.TextColor3 = Color3.fromRGB(0, 255, 0)
+                    label.Font = Enum.Font.GothamBold
+                    label.TextSize = 16
+                    label.Text = other.Name
+                    label.Parent = bb
+                end
+            end
+        end
+    else
+        for _, other in ipairs(Players:GetPlayers()) do
+            if other.Character then
+                local bb = other.Character:FindFirstChild("DeepHatESP")
+                if bb then bb:Destroy() end
+            end
+        end
+    end
+
+    -- Auto-Shoot
+    if state.autoShoot then
+        local tool = getEquippedWeapon()
+        if tool and tool:FindFirstChildWhichIsA("BasePart") then
+            local target = findClosestEnemy()
+            if target then
+                local targetHrp = target.Character:FindFirstChild("HumanoidRootPart")
+                if targetHrp then
+                    -- Simulate click/trigger
+                    local mouse = player:GetMouse()
+                    mouse:Click()
+                end
+            end
+        end
+    end
+
+    -- Auto-Equip (Cooldown)
+    if state.autoEquip then
+        if not _G.lastEquip or os.clock() - _G.lastEquip > 5 then
+            autoEquipBest()
+            _G.lastEquip = os.clock()
+        end
+    end
+
+    -- Auto-Loot
+    if state.autoLoot then
+        autoLoot()
+    end
+
+    -- Auto-Chat
+    if state.autoChat then
+        chatFunc()
+    end
+end)
+
+print("DeepHat MM2 Hub loaded successfully.")
